@@ -18,7 +18,7 @@ function BodyMesh({ skinTone, layers }) {
 
   const parts = [
     // [geometry args, position, type]
-    { geo: [0.22, 0.22, 0.25, 24], pos: [0, 2.05, 0], type: 'sphere', label: 'head' },
+    { geo: [0.23, 28, 22], pos: [0, 2.02, 0], type: 'sphere', label: 'head' },
     { geo: [0.1, 0.1, 0.2, 12], pos: [0, 1.78, 0], type: 'cyl', label: 'neck' },
     { geo: [0.42, 0.35, 0.7, 16], pos: [0, 1.25, 0], type: 'cyl', label: 'chest' },
     { geo: [0.32, 0.3, 0.45, 16], pos: [0, 0.7, 0], type: 'cyl', label: 'abdomen' },
@@ -73,8 +73,8 @@ function Scene({ skinTone, layers }) {
       <OrbitControls
         enablePan={true}
         minDistance={1.5}
-        maxDistance={6}
-        target={[0, 0.5, 0]}
+        maxDistance={7}
+        target={[0, 0.35, 0]}
       />
       <gridHelper args={[4, 20, '#1a1a2e', '#1a1a2e']} position={[0, -1.35, 0]} />
     </>
@@ -89,7 +89,7 @@ export default function Body3D({ skinTone, layers }) {
       </div>
       <div className="flex-1">
         <Canvas
-          camera={{ position: [0, 1, 3.5], fov: 50 }}
+          camera={{ position: [0, 0.5, 4.6], fov: 50 }}
           shadows
           gl={{ antialias: true }}
           style={{ background: 'linear-gradient(to bottom, #0f0f18, #1a1a28)' }}
