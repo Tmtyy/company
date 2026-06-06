@@ -6,6 +6,9 @@ import CalibrationPanel from './components/CalibrationPanel';
 import MeasurePanel from './components/MeasurePanel';
 import QuotePanel from './components/QuotePanel';
 import AIPhotoPanel from './components/AIPhotoPanel';
+import BodyTypePanel from './components/BodyTypePanel';
+import ShopPanel from './components/ShopPanel';
+import AIDetectPanel from './components/AIDetectPanel';
 import BodyCanvas from './components/BodyCanvas';
 import Body3D from './components/Body3D';
 import ExportPanel from './components/ExportPanel';
@@ -26,6 +29,8 @@ export default function App() {
   const [skinTone, setSkinTone] = useState(SKIN_TONES[1].value);
   const [view3D, setView3D] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [bodyType, setBodyType] = useState({ weight: 78, muscle: 45, leanness: 45, height: 175 });
+  const [anatomyLayer, setAnatomyLayer] = useState('skin');
 
   const addDesign = useCallback(({ url, name, naturalW, naturalH }) => {
     const id = `layer-${nextId++}`;
@@ -88,6 +93,9 @@ export default function App() {
     />,
     quote: <QuotePanel calibration={calibration} unit={unit} />,
     ai: <AIPhotoPanel layers={layers} />,
+    bodytype: <BodyTypePanel bodyType={bodyType} setBodyType={setBodyType} />,
+    shop: <ShopPanel layers={layers} skinTone={skinTone} />,
+    aidetect: <AIDetectPanel onAddDesign={addDesign} />,
   };
 
   return (
@@ -134,12 +142,14 @@ export default function App() {
 
         <main style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           {view3D
-            ? <Body3D skinTone={skinTone} layers={layers} />
+            ? <Body3D skinTone={skinTone} layers={layers} bodyType={bodyType}
+                anatomyLayer={anatomyLayer} setAnatomyLayer={setAnatomyLayer} />
             : <BodyCanvas
                 layers={layers} selectedId={selectedId} setSelectedId={setSelectedId}
                 onUpdateLayer={updateLayer} calibration={calibration} unit={unit}
                 measureTool={measureTool} setMeasureResult={setMeasureResult}
                 skinTone={skinTone} setSkinTone={setSkinTone}
+                bodyType={bodyType} anatomyLayer={anatomyLayer} setAnatomyLayer={setAnatomyLayer}
               />
           }
         </main>

@@ -1,14 +1,38 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { BODY_VIEWS } from '../utils/bodyPaths';
 import { SKIN_TONES } from '../utils/measurements';
+import { MUSCLES, BONES, computeMorph } from '../utils/anatomy';
 
 const VIEWS = ['front', 'back', 'left-arm', 'right-arm', 'ribs'];
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + amt, g = ((n >> 8) & 0xff) + amt, b = (n & 0xff) + amt;
+  r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); b = Math.max(0, Math.min(255, b));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function AnatomyShape({ s }) {
+  const stroke = s.stroke ?? 'none';
+  const sw = s.sw ?? (s.stroke ? 1.5 : 0);
+  const fill = s.fill ?? 'none';
+  switch (s.el) {
+    case 'ellipse': return <ellipse cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} fill={fill} stroke={stroke} strokeWidth={sw} />;
+    case 'circle': return <circle cx={s.cx} cy={s.cy} r={s.r} fill={fill} stroke={stroke} strokeWidth={sw} />;
+    case 'rect': return <rect x={s.x} y={s.y} width={s.w} height={s.h} rx={s.rx} fill={fill} stroke={stroke} strokeWidth={sw} />;
+    case 'line': return <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />;
+    case 'path': return <path d={s.d} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />;
+    default: return null;
+  }
+}
 
 export default function BodyCanvas({
   layers, selectedId, setSelectedId, onUpdateLayer,
   calibration, unit, measureTool, setMeasureResult,
-  skinTone, setSkinTone
+  skinTone, setSkinTone, bodyType, anatomyLayer, setAnatomyLayer
 }) {
+  const morph = computeMorph(bodyType || {});
+  const bodyWidth = 1 + 0.22 * (morph.torsoWidth - 1) + 0.15 * morph.fat;
   const svgRef = useRef();
   const overlayRef = useRef(); // canvas for designs + measurements
   const containerRef = useRef();
@@ -339,6 +363,17 @@ export default function BodyCanvas({
           ))}
         </div>
         <div className="w-px h-5 bg-[#2a2a38] mx-1" />
+        {/* Anatomy layer */}
+        <div className="flex gap-1">
+          {[['skin', 'Skin'], ['muscle', 'Muscle'], ['bone', 'Bone']].map(([v, l]) => (
+            <button key={v} onClick={() => setAnatomyLayer(v)}
+              title={MUSCLES[view] ? `${l} layer` : `${l} (front/back only)`}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${anatomyLayer === v ? 'bg-violet-600 text-white' : 'bg-[#1e1e2a] text-slate-400 hover:text-white hover:bg-[#2a2a38]'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="w-px h-5 bg-[#2a2a38] mx-1" />
         {/* Zoom */}
         <div className="flex items-center gap-2">
           <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))}
@@ -367,18 +402,48 @@ export default function BodyCanvas({
               <filter id="skin-shadow">
                 <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="rgba(0,0,0,0.4)" />
               </filter>
+              <radialGradient id="skin-grad" cx="42%" cy="32%" r="80%">
+                <stop offset="0%" stopColor={shade(skinTone, 28)} />
+                <stop offset="55%" stopColor={skinTone} />
+                <stop offset="100%" stopColor={shade(skinTone, -34)} />
+              </radialGradient>
             </defs>
-            {bodyView.paths.map(p => (
-              <path
-                key={p.id}
-                d={p.d}
-                fill={skinTone}
-                stroke={`color-mix(in srgb, ${skinTone} 60%, #000 40%)`}
-                strokeWidth="1.5"
-                style={{ filter: 'url(#skin-shadow)' }}
-              />
-            ))}
+
+            <g transform={`translate(150 0) scale(${bodyWidth.toFixed(3)} 1) translate(-150 0)`}>
+              {/* Silhouette */}
+              {bodyView.paths.map(p => (
+                <path
+                  key={p.id}
+                  d={p.d}
+                  fill={anatomyLayer === 'bone' ? 'none' : 'url(#skin-grad)'}
+                  stroke={anatomyLayer === 'bone' ? shade(skinTone, -10) : shade(skinTone, -60)}
+                  strokeWidth={anatomyLayer === 'bone' ? 1 : 1.5}
+                  strokeOpacity={anatomyLayer === 'bone' ? 0.45 : 1}
+                  style={anatomyLayer === 'bone' ? undefined : { filter: 'url(#skin-shadow)' }}
+                />
+              ))}
+
+              {/* Belly mass on higher body fat (front/back torso) */}
+              {morph.bellySize > 0.08 && (view === 'front' || view === 'back') && anatomyLayer === 'skin' && (
+                <ellipse cx="150" cy={view === 'front' ? 250 : 255}
+                  rx={40 + 26 * morph.bellySize} ry={52 + 12 * morph.bellySize}
+                  fill="url(#skin-grad)" opacity="0.92" />
+              )}
+
+              {/* Muscle layer */}
+              {anatomyLayer === 'muscle' && MUSCLES[view]?.map((s, i) => <AnatomyShape key={`m${i}`} s={s} />)}
+
+              {/* Bone layer */}
+              {anatomyLayer === 'bone' && BONES[view]?.map((s, i) => <AnatomyShape key={`b${i}`} s={s} />)}
+            </g>
           </svg>
+
+          {/* Anatomy not available note for zoom views */}
+          {anatomyLayer !== 'skin' && !MUSCLES[view] && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-slate-500 bg-[#16161f]/90 px-3 py-1 rounded-full">
+              {anatomyLayer === 'muscle' ? 'Muscle' : 'Bone'} overlay available on Front &amp; Back views
+            </div>
+          )}
         </div>
 
         {/* Interaction canvas overlay (full size) */}
